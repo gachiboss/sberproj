@@ -1,4 +1,5 @@
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import sys
 import librosa
 import tensorflow.keras
@@ -18,8 +19,8 @@ if __name__ == "__main__":
     # load model
     model = load_model("trained_heartbeat_classifier.h5")
     # File to be classified
-    # classify_file = "my_heartbeat.wav"
-    classify_file = sys.argv[1]
+    classify_file = "normal_noisynormal_109_1305653972028_F.wav"
+    #classify_file = sys.argv[1]
     x_test = []
     x_test.append(extract_features(classify_file, 0.5))
     x_test = np.asarray(x_test)

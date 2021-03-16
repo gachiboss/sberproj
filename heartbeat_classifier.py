@@ -138,9 +138,11 @@ print("X train:", x_train.shape)
 print("Y train:", y_train.shape)
 print("X test:", x_test.shape)
 print("Y test:", y_test.shape)
+print(x_train.shape[0])
+print(x_test.shape[0])
 
 model = Sequential()
-model.add(Conv2D(filters=16, kernel_size=2, input_shape=(x_train.shape[0], x_train.shape[1], x_train.shape[2]), activation='relu'))
+model.add(Conv2D(filters=16, kernel_size=2, input_shape=(x_train.shape[1],x_train.shape[2],x_train.shape[3]), activation='relu'))
 model.add(MaxPooling2D(pool_size=2))
 model.add(Dropout(0.2))
 
@@ -203,5 +205,5 @@ for idx, prediction in enumerate(predictions):
 print(classification_report(y_pred, y_true))
 
 
-model_name = "heartbeat_classifier (normalised).h5"
+model_name = "trained_heartbeat_classifier.h5"
 model.save(model_name)
