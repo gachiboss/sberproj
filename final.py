@@ -1,78 +1,71 @@
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-import glob
 import numpy as np
-from tqdm import tqdm
-import itertools
-import matplotlib.pyplot as plt
-import pandas as pd
+from matplotlib import pyplot as plt
+import cv2
+import time
+import dlib
+from imutils import face_utils
+import sys
+from PyQt6 import QtGui, QtCore, QtWidgets
+import design
 
-# Audio
-import librosa
-import librosa.display
-
-# Scikit learn
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
-from sklearn.preprocessing import LabelEncoder
-from sklearn.utils import shuffle
-from sklearn.utils import class_weight
-
-# Keras
-import tensorflow.keras
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten
-from tensorflow.keras.layers import Convolution2D, Conv2D, MaxPooling2D, GlobalAveragePooling2D
-from tensorflow.keras.utils import to_categorical
-
-dataset = []
-for folder in ["./datasets/set_a/**", "./datasets/set_b/**"]:
-    for filename in glob.iglob(folder):
-        if os.path.exists(filename):
-            label = os.path.basename(filename).split("_")[0]
-            duration = librosa.get_duration(filename=filename)
-            # skip audio smaller than 3 secs
-            if duration >= 3:
-                slice_size = 3
-                iterations = int((duration - slice_size) / (slice_size - 1))
-                iterations += 1
-                #                 initial_offset = (duration % slice_size)/2
-                initial_offset = (duration - ((iterations * (slice_size - 1)) + 1)) / 2
-                if label not in ["Aunlabelledtest", "Bunlabelledtest", "artifact"]:
-                    for i in range(iterations):
-                        offset = initial_offset + i * (slice_size - 1)
-                        if (label == "normal"):
-                            dataset.append({
-                                "filename": filename,
-                                "label": "normal",
-                                "offset": offset
-                            })
-                        else:
-                            dataset.append({
-                                "filename": filename,
-                                "label": "abnormal",
-                                "offset": offset
-                            })
-
-dataset = pd.DataFrame(dataset)
-dataset = shuffle(dataset, random_state=42)
-dataset.info()
-
-train, test = train_test_split(dataset, test_size=0.2, random_state=42)
-
-print("Train: %i" % len(train))
-print("Test: %i" % len(test))
+class App(QtWidgets.QMainWindow, design.Ui_MainWindow):
+    def __init__(self):
+        # Это здесь нужно для доступа к переменным, методам
+        # и т.д. в файле design.py
+        super().__init__()
+        self.setupUi(self)  # Это нужно для инициализации нашего дизайна
+        #self.pushButton.clicked.connect()
 
 
-def extract_features(audio_path):
-    #     y, sr = librosa.load(audio_path, duration=3)
-    y, sr = librosa.load(audio_path, duration=3)
-    #     y = librosa.util.normalize(y)
+def grab_images( queue):
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 500)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 250)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    face_detect = dlib.get_frontal_face_detector()
+    values = [[], []]
+    while True:
+        ret, frame = cap.read()
 
-    s = librosa.feature.melspectrogram(y, sr=sr, n_fft=2048,
-                                       hop_length=512,
-                                       n_mels=128)
-    mfccs = librosa.feature.mfcc(s=librosa.power_to_db(s), n_mfcc=40)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        rects = face_detect(gray, 1)
+        for (i, rect) in enumerate(rects):
+            (x, y, w, h) = face_utils.rect_to_bb(rect)
 
-    #     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=40)
-    return mfccs
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            crop_img = gray[y:y + h, x:x + w]
+            heartbeat_values = heartbeat_values[1:] + [np.average(crop_img)]
+            values[0].append(heartbeat_values)
+            heartbeat_times = heartbeat_times[1:] + [time.time()]
+            values[1].append(heartbeat_times)
+    cap.release()
+    return values
+
+
+class ImageWidget(QtWidgets):
+    def __init__(self, parent=None):
+        super(ImageWidget, self).__init__(parent)
+        self.image = None
+
+    def setImage(self, image):
+        self.image = image
+        self.setMinimumSize(image.size())
+        self.update()
+
+    def paintEvent(self, event):
+        qp = QtWidgets.QStylePainter()
+        qp.begin(self)
+        if self.image:
+            qp.drawImage, self.image)
+        qp.end()
+
+
+def main():
+    app = QtWidgets.QApplication(sys.argv)  # Новый экземпляр QApplication
+    window = App()  # Создаём объект класса ExampleApp
+    window.show()  # Показываем окно
+    sys.exit(app.exec())
+
+
+if __name__ == '__main__':  # Если мы запускаем файл напрямую, а не импортируем
+    main()  # то запускаем функцию main()
